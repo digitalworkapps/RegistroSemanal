@@ -395,7 +395,7 @@
       </svg>
     </div>
     <h2>Sube la captura del registro</h2>
-    <p>PNG · JPG · WebP — arrastra o haz clic</p>
+    <p>PNG · JPG · arrastra, haz clic o pega con Ctrl+V</p>
   </div>
 
   <div class="progress-wrap" id="progress-wrap">
@@ -451,6 +451,22 @@ dropZone.addEventListener('drop', e => {
   if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
 });
 fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+
+document.addEventListener('paste', e => {
+  const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) { flashDrop(); processFile(file); }
+      break;
+    }
+  }
+});
+
+function flashDrop() {
+  dropZone.classList.add('dragging');
+  setTimeout(() => dropZone.classList.remove('dragging'), 600);
+}
 
 function toggleDebug() {
   const btn = document.getElementById('debug-toggle');

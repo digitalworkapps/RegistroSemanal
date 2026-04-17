@@ -95,7 +95,10 @@
     padding: 4px 8px;
     text-align: center;
     outline: none;
+    -moz-appearance: textfield;
   }
+  .jornada-config input::-webkit-outer-spin-button,
+  .jornada-config input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
   .jornada-config input:focus { border-color: var(--accent); }
   .jornada-config span { color: var(--muted); font-size: 0.9rem; }
@@ -241,7 +244,7 @@
 
   .t-header {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr 1.1fr 1.4fr;
+    grid-template-columns: 1.8fr 1fr 1fr 1.1fr 1.2fr 1.2fr;
     padding: 12px 20px;
     border-bottom: 1px solid var(--border);
     font-family: 'DM Mono', monospace;
@@ -254,7 +257,7 @@
 
   .t-row {
     display: grid;
-    grid-template-columns: 1.8fr 1fr 1fr 1.1fr 1.4fr;
+    grid-template-columns: 1.8fr 1fr 1fr 1.1fr 1.2fr 1.2fr;
     padding: 14px 20px;
     border-bottom: 1px solid var(--border);
     align-items: center;
@@ -362,8 +365,8 @@
 
   @media (max-width: 600px) {
     .summary-grid { grid-template-columns: repeat(2, 1fr); }
-    .t-header, .t-row { grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr; }
-    .t-header span:nth-child(5), .t-row .t-diff { display: none; }
+    .t-header, .t-row { grid-template-columns: 1.4fr 0.8fr 0.8fr 1fr 1fr; }
+    .t-header span:nth-child(6), .t-row .t-bolsa-col { display: none; }
   }
 </style>
 </head>
@@ -422,7 +425,7 @@
 
     <div class="table-wrap">
       <div class="t-header">
-        <span>Día</span><span>Entrada</span><span>Salida</span><span>Trabajado</span><span>Diferencia</span>
+        <span>Día</span><span>Entrada</span><span>Salida</span><span>Trabajado</span><span>Diferencia</span><span>Bolsa</span>
       </div>
       <div id="table-body"></div>
     </div>
@@ -651,16 +654,26 @@ function renderResults(dias) {
     } else {
       const absDiff = Math.abs(diff);
       barWidth = Math.min(100, Math.round((absDiff / maxDiff) * 100));
-      const bolsaSign = bolsa >= 0 ? '+' : '';
-      if (bolsa === 0) {
-        pill = `<span class="pill pill-exact" title="Real: ${diff > 0 ? '+' : ''}${diff} min">Bolsa: 0 min</span>`;
+      if (Math.abs(diff) <= 3) {
+        pill = `<span class="pill pill-exact">0 min</span>`;
         barColor = '#c8f043';
       } else if (diff > 0) {
-        pill = `<span class="pill pill-over" title="Real: +${diff} min">Bolsa: ${bolsaSign}${bolsa} min</span>`;
+        pill = `<span class="pill pill-over">+${diff} min</span>`;
         barColor = '#4ff0b5';
       } else {
-        pill = `<span class="pill pill-under" title="Real: ${diff} min">Bolsa: ${bolsa} min</span>`;
+        pill = `<span class="pill pill-under">${diff} min</span>`;
         barColor = '#ff5a5a';
+      }
+      const bolsaSign = bolsa !== null && bolsa >= 0 ? '+' : '';
+      let bolsaPill = '';
+      if (bolsa === null) {
+        bolsaPill = '<span class="pill pill-open">—</span>';
+      } else if (bolsa === 0) {
+        bolsaPill = '<span class="pill pill-exact">0 min</span>';
+      } else if (bolsa > 0) {
+        bolsaPill = `<span class="pill pill-over" style="font-size:0.8rem;padding:4px 12px;">${bolsaSign}${bolsa} min</span>`;
+      } else {
+        bolsaPill = `<span class="pill pill-under" style="font-size:0.8rem;padding:4px 12px;">${bolsa} min</span>`;
       }
     }
 
@@ -675,6 +688,9 @@ function renderResults(dias) {
       <div class="t-diff">
         ${pill}
         ${diff !== null && Math.abs(diff) > 3 ? `<div class="bar-track"><div class="bar-fill" style="width:${barWidth}%;background:${barColor}"></div></div>` : ''}
+      </div>
+      <div class="t-bolsa-col" style="display:flex;align-items:center;">
+        ${bolsaPill}
       </div>
     `;
     tableBody.appendChild(row);

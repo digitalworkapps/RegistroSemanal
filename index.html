@@ -381,6 +381,10 @@
       <span>h</span>
       <input type="number" id="jornada-m" value="15" min="0" max="59">
       <span>min</span>
+      <span style="margin-left:12px;margin-right:4px;">·</span>
+      <label>Tramo bolsa</label>
+      <input type="number" id="tramo" value="15" min="1" max="60" style="width:44px">
+      <span>min</span>
     </div>
   </header>
 
@@ -484,6 +488,18 @@ function getJornada() {
   const h = Math.max(1, parseInt(document.getElementById('jornada-h').value) || 7);
   const m = Math.max(0, parseInt(document.getElementById('jornada-m').value) || 15);
   return h * 60 + m;
+}
+
+function getTramo() {
+  return Math.max(1, parseInt(document.getElementById('tramo').value) || 15);
+}
+
+// Positivo: floor al tramo (pierdes el resto)
+// Negativo: ceil al tramo en negativo (pagas el tramo completo)
+function roundBolsa(diff, tramo) {
+  if (diff === null) return null;
+  if (diff >= 0) return Math.floor(diff / tramo) * tramo;
+  else return -Math.ceil(Math.abs(diff) / tramo) * tramo;
 }
 
 function fmtMins(total) {
@@ -618,8 +634,10 @@ function renderResults(dias) {
     const salMin = d.salida ? toMins(d.salida) : null;
     const worked = (entMin !== null && salMin !== null) ? salMin - entMin : null;
     const diff = worked !== null ? worked - jornada : null;
+    const tramo = getTramo();
+    const bolsa = roundBolsa(diff, tramo);
 
-    if (worked !== null) { totalMin += worked; diffAcum += diff; diasCompletos++; }
+    if (worked !== null) { totalMin += worked; diffAcum += (bolsa !== null ? bolsa : 0); diasCompletos++; }
 
     const row = document.createElement('div');
     row.className = 't-row';
@@ -633,14 +651,15 @@ function renderResults(dias) {
     } else {
       const absDiff = Math.abs(diff);
       barWidth = Math.min(100, Math.round((absDiff / maxDiff) * 100));
-      if (absDiff <= 3) {
-        pill = '<span class="pill pill-exact">Exacto</span>';
+      const bolsaSign = bolsa >= 0 ? '+' : '';
+      if (bolsa === 0) {
+        pill = `<span class="pill pill-exact" title="Real: ${diff > 0 ? '+' : ''}${diff} min">Bolsa: 0 min</span>`;
         barColor = '#c8f043';
       } else if (diff > 0) {
-        pill = `<span class="pill pill-over">+${diff} min</span>`;
+        pill = `<span class="pill pill-over" title="Real: +${diff} min">Bolsa: ${bolsaSign}${bolsa} min</span>`;
         barColor = '#4ff0b5';
       } else {
-        pill = `<span class="pill pill-under">${diff} min</span>`;
+        pill = `<span class="pill pill-under" title="Real: ${diff} min">Bolsa: ${bolsa} min</span>`;
         barColor = '#ff5a5a';
       }
     }
@@ -673,6 +692,8 @@ function renderResults(dias) {
     diffEl.textContent = '—';
     diffEl.className = 'stat-val neutral';
   }
+  // Update label to clarify it's bolsa
+  document.querySelector('#s-diff').closest('.stat').querySelector('.stat-label').textContent = 'Bolsa acum.';
 
   document.getElementById('s-media').textContent = diasCompletos ? fmtMins(totalMin / diasCompletos) : '—';
   results.style.display = 'block';

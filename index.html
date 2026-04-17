@@ -311,18 +311,30 @@ function parseOCR(text) {
 
     const times = extractTimes(seg);
 
-    // De todas las horas encontradas, elegir el par más coherente:
-    // entrada = la primera hora válida, salida = la siguiente que sea > entrada y diferencia <= 12h
+    // Elegir el par (entrada, salida) cuya diferencia sea la más cercana a la jornada
+    // configurada, entre todas las combinaciones posibles donde salida > entrada y diff <= 11h
     let entrada = null;
     let salida  = null;
     if (times.length >= 1) {
-      entrada = times[0];
-      for (let j = 1; j < times.length; j++) {
-        const diff = times[j].val - entrada.val;
-        if (diff > 0 && diff <= 720) { // salida > entrada y máximo 12h de diferencia
-          salida = times[j];
-          break;
+      entrada = times[0]; // si solo hay una hora, es la entrada
+      if (times.length >= 2) {
+        const jornadaRef = getJornada();
+        let bestScore = Infinity;
+        for (let a = 0; a < times.length; a++) {
+          for (let b = a + 1; b < times.length; b++) {
+            const diff = times[b].val - times[a].val;
+            if (diff > 0 && diff <= 660) { // máximo 11h de jornada
+              const score = Math.abs(diff - jornadaRef);
+              if (score < bestScore) {
+                bestScore = score;
+                entrada = times[a];
+                salida  = times[b];
+              }
+            }
+          }
         }
+        // Si ningún par pasó el filtro de 11h, al menos asignar la entrada
+        if (!salida) entrada = times[0];
       }
     }
 

@@ -546,67 +546,60 @@ async function processFile(file) {
   }
 }
 
-function parseOCR(text) {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-  const dias = [];
-  let current = null;
-
-  const DAY_NAMES = ['lunes','martes','miércoles','miercoles','jueves','viernes','sábado','sabado','domingo'];
-  const TIME_RE = /\b(\d{1,2})[:\.\-](\d{2})\b|\b([01]\d|2[0-3])([0-5]\d)\b/g;
-  const DATE_RE = /(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})/;
-
-  for (const line of lines) {
-    const low = line.toLowerCase();
-
-    // Detecta línea de cabecera de día
-    const isDayLine = DAY_NAMES.some(d => low.includes(d));
-    const dateMatch = line.match(DATE_RE);
-
-    if (isDayLine || (dateMatch && !current)) {
-      if (current) dias.push(current);
-      let dayName = '';
-      for (const d of DAY_NAMES) {
-        if (low.includes(d)) { dayName = d.charAt(0).toUpperCase() + d.slice(1); break; }
-      }
-      const fecha = dateMatch ? dateMatch[0] : '';
-      current = { dia: dayName, fecha, tipo: 'Oficina', entrada: null, salida: null };
-      continue;
-    }
-
-    if (!current) continue;
-
-    // Detecta tipo
-    if (low.includes('teletrabajo') || low.includes('telework') || low.includes('remoto')) current.tipo = 'Teletrabajo';
-    else if (low.includes('oficina') || low.includes('office')) current.tipo = 'Oficina';
-
-    // Extrae horas de la línea
-    const times = [];
-    let tm;
-    TIME_RE.lastIndex = 0;
-    while ((tm = TIME_RE.exec(line)) !== null) {
-      let h, m;
-      if (tm[1] !== undefined) {
-        h = parseInt(tm[1]); m = parseInt(tm[2]);
-      } else {
-        h = parseInt(tm[3]); m = parseInt(tm[4]);
-      }
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
-        times.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
-      }
-    }
-
-    if (times.length >= 2) {
-      current.entrada = times[0];
-      current.salida = times[1];
-    } else if (times.length === 1) {
-      if (!current.entrada) current.entrada = times[0];
-      else if (!current.salida) current.salida = times[0];
+function extractTimes(str) {
+  const RE = /\b(\d{1,2})[:\.](\d{2})\b|\b([01]\d|2[0-3])([0-5]\d)\b/g;
+  const times = [];
+  let m;
+  while ((m = RE.exec(str)) !== null) {
+    let h, min;
+    if (m[1] !== undefined) { h = parseInt(m[1]); min = parseInt(m[2]); }
+    else { h = parseInt(m[3]); min = parseInt(m[4]); }
+    if (h >= 6 && h <= 22 && min >= 0 && min <= 59) {
+      times.push(String(h).padStart(2,'0') + ':' + String(min).padStart(2,'0'));
     }
   }
+  return times;
+}
 
-  if (current) dias.push(current);
+function parseOCR(text) {
+  const DAY_MAP = {
+    'lunes':'Lunes','martes':'Martes','miercoles':'Miércoles','miércoles':'Miércoles',
+    'jueves':'Jueves','viernes':'Viernes','sabado':'Sábado','sábado':'Sábado','domingo':'Domingo'
+  };
+  const DATE_RE = /(\d{1,2})[\/\-\.](\d{2})[\/\-\.](\d{4})/;
 
-  // Filtrar entradas sin al menos entrada
+  const flat = text.replace(/\r?\n/g, ' ').replace(/\s{2,}/g, ' ');
+
+  const positions = [];
+  for (const [key, val] of Object.entries(DAY_MAP)) {
+    const re = new RegExp('\\b' + key + '\\b', 'gi');
+    let m;
+    while ((m = re.exec(flat)) !== null) {
+      if (!positions.find(p => Math.abs(p.index - m.index) < 3)) {
+        positions.push({ index: m.index, name: val });
+      }
+    }
+  }
+  positions.sort((a, b) => a.index - b.index);
+
+  const dias = [];
+  for (let i = 0; i < positions.length; i++) {
+    const start = positions[i].index;
+    const end = positions[i + 1] ? positions[i + 1].index : flat.length;
+    const seg = flat.slice(start, end);
+    const segLow = seg.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+    const dateMatch = seg.match(DATE_RE);
+    const fecha = dateMatch ? dateMatch[0] : '';
+
+    let tipo = 'Oficina';
+    if (segLow.includes('teletrabajo') || segLow.includes('telework') || segLow.includes('remoto')) tipo = 'Teletrabajo';
+
+    const times = extractTimes(seg);
+
+    dias.push({ dia: positions[i].name, fecha, tipo, entrada: times[0] || null, salida: times[1] || null });
+  }
+
   return dias.filter(d => d.entrada);
 }
 

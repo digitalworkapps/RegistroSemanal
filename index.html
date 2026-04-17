@@ -552,7 +552,7 @@ function parseOCR(text) {
   let current = null;
 
   const DAY_NAMES = ['lunes','martes','miércoles','miercoles','jueves','viernes','sábado','sabado','domingo'];
-  const TIME_RE = /\b(\d{1,2})[:\.\-](\d{2})\b/g;
+  const TIME_RE = /\b(\d{1,2})[:\.\-](\d{2})\b|\b([01]\d|2[0-3])([0-5]\d)\b/g;
   const DATE_RE = /(\d{1,2})[\/\-](\d{2})[\/\-](\d{4})/;
 
   for (const line of lines) {
@@ -584,8 +584,15 @@ function parseOCR(text) {
     let tm;
     TIME_RE.lastIndex = 0;
     while ((tm = TIME_RE.exec(line)) !== null) {
-      const h = parseInt(tm[1]), m = parseInt(tm[2]);
-      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) times.push(tm[0].replace('.', ':').replace('-', ':'));
+      let h, m;
+      if (tm[1] !== undefined) {
+        h = parseInt(tm[1]); m = parseInt(tm[2]);
+      } else {
+        h = parseInt(tm[3]); m = parseInt(tm[4]);
+      }
+      if (h >= 0 && h <= 23 && m >= 0 && m <= 59) {
+        times.push(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0'));
+      }
     }
 
     if (times.length >= 2) {

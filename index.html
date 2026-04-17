@@ -616,7 +616,16 @@ function parseOCR(text) {
 
     const times = extractTimes(seg);
 
-    dias.push({ dia: positions[i].name, fecha, tipo, entrada: times[0] || null, salida: times[1] || null });
+    // Always assign smaller time as entrada, larger as salida
+    let entrada = null, salida = null;
+    if (times.length >= 2) {
+      const t0 = times[0].replace(':',''); const t1 = times[1].replace(':','');
+      entrada = t0 <= t1 ? times[0] : times[1];
+      salida  = t0 <= t1 ? times[1] : times[0];
+    } else if (times.length === 1) {
+      entrada = times[0];
+    }
+    dias.push({ dia: positions[i].name, fecha, tipo, entrada, salida });
   }
 
   return dias.filter(d => d.entrada);
@@ -669,11 +678,11 @@ function renderResults(dias) {
       if (bolsa === null) {
         bolsaPill = '<span class="pill pill-open">—</span>';
       } else if (bolsa === 0) {
-        bolsaPill = '<span class="pill pill-exact">0 min</span>';
+        bolsaPill = '<span class="pill pill-exact" style="padding:4px 14px;">0 min</span>';
       } else if (bolsa > 0) {
-        bolsaPill = `<span class="pill pill-over" style="font-size:0.8rem;padding:4px 12px;">${bolsaSign}${bolsa} min</span>`;
+        bolsaPill = `<span class="pill pill-over" style="padding:4px 14px;">${bolsaSign}${bolsa} min</span>`;
       } else {
-        bolsaPill = `<span class="pill pill-under" style="font-size:0.8rem;padding:4px 12px;">${bolsa} min</span>`;
+        bolsaPill = `<span class="pill pill-under" style="padding:4px 14px;">${bolsa} min</span>`;
       }
     }
 
